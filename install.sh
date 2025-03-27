@@ -81,17 +81,17 @@ install_bun() {
   
   # Make Bun available system-wide
   if [ -f /home/buninstaller/.bun/bin/bun ]; then
-    cp -r /home/buninstaller/.bun /usr/local/
-    ln -sf /usr/local/.bun/bin/bun /usr/local/bin/bun
+    # Get the current user (the one who ran sudo)
+    CURRENT_USER=${SUDO_USER:-$USER}
+    CURRENT_USER_HOME=$(eval echo ~$CURRENT_USER)
     
-    # Add Bun's global bin directory to PATH for all users
-    echo 'export PATH="$PATH:/usr/local/.bun/bin"' > /etc/profile.d/bun.sh
+    # Add Bun to the current user's PATH via .bashrc
+    if ! grep -q "export PATH=\"$CURRENT_USER_HOME/.bun/bin:\$PATH\"" $CURRENT_USER_HOME/.bashrc; then
+      echo "export PATH=\"$CURRENT_USER_HOME/.bun/bin:\$PATH\"" >> $CURRENT_USER_HOME/.bashrc
+    fi
     
-    # Make the script executable
-    chmod +x /etc/profile.d/bun.sh
-    
-    # Source the profile to update PATH for current session
-    source /etc/profile.d/bun.sh
+    # Also add to the current session
+    export PATH="$CURRENT_USER_HOME/.bun/bin:$PATH"
     
     # Verify Bun installation
     if bun --version &> /dev/null; then
