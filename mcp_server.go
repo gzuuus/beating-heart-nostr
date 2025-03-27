@@ -11,8 +11,15 @@ import (
 	"github.com/parakeet-nest/parakeet/llm"
 )
 
+var globalStore embeddings.BboltVectorStore
+
 // StartMCPServer initializes and starts the MCP server
 func StartMCPServer() error {
+	err := globalStore.Initialize(dbPath)
+	if err != nil {
+		return fmt.Errorf("error initializing vector store: %v", err)
+	}
+
 	// Create MCP server
 	s := server.NewMCPServer(
 		"Nostr NIPs RAG System",
@@ -62,13 +69,6 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		numResults = int(num)
 	}
 
-	// Initialize the vector store
-	store := embeddings.BboltVectorStore{}
-	err := store.Initialize(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing vector store: %v", err)
-	}
-
 	// Create embedding from the query
 	queryWithPrefix := fmt.Sprintf("search_query: %s", query)
 	queryEmbedding, err := embeddings.CreateEmbedding(
@@ -84,7 +84,7 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 
 	// Search for similar documents
-	similarities, err := store.SearchTopNSimilarities(queryEmbedding, similarity, numResults)
+	similarities, err := globalStore.SearchTopNSimilarities(queryEmbedding, similarity, numResults)
 	if err != nil {
 		return nil, fmt.Errorf("error searching for similarities: %v", err)
 	}
