@@ -84,6 +84,15 @@ install_bun() {
     cp -r /home/buninstaller/.bun /usr/local/
     ln -sf /usr/local/.bun/bin/bun /usr/local/bin/bun
     
+    # Add Bun's global bin directory to PATH for all users
+    echo 'export PATH="$PATH:/usr/local/.bun/bin"' > /etc/profile.d/bun.sh
+    
+    # Make the script executable
+    chmod +x /etc/profile.d/bun.sh
+    
+    # Source the profile to update PATH for current session
+    source /etc/profile.d/bun.sh
+    
     # Verify Bun installation
     if bun --version &> /dev/null; then
       print_status "Bun $(bun --version) installed successfully"
