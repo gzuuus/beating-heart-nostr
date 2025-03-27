@@ -66,6 +66,24 @@ go run . -query -text "What are the message types from relay to client in NIP-01
 
 The system will return the most relevant sections from the NIPs documentation that answer your query.
 
+### Running as an MCP Server
+
+You can expose the RAG system as an MCP server:
+
+```bash
+go run . -mcp
+```
+
+This starts an MCP server that provides the `query_nips` tool for AI agents. The tool accepts:
+- `query` (required): The search query
+- `similarity` (optional): Similarity threshold (0.0-1.0)
+- `num_results` (optional): Number of results to return
+
+Test with the MCP inspector:
+```bash
+npx @modelcontextprotocol/inspector go run . -mcp
+```
+
 ## How It Works
 
 1. **Semantic Chunking**: The system processes markdown files from the Nostr NIPs repository using semantic chunking to preserve the document structure and meaning.

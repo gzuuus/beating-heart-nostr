@@ -33,11 +33,19 @@ func main() {
 	queryText := flag.String("text", "", "The query text when in query mode")
 	similarity := flag.Float64("similarity", 0.3, "The similarity threshold for retrieving documents")
 	numResults := flag.Int("results", 3, "The number of similar documents to retrieve")
+	mcpMode := flag.Bool("mcp", false, "Run as an MCP server")
 
 	// Parse flags
 	flag.Parse()
 
-	if *queryMode {
+	if *mcpMode {
+		// Run as an MCP server
+		fmt.Println("Starting in MCP server mode...")
+		err := StartMCPServer()
+		if err != nil {
+			log.Fatalf("Error running MCP server: %v", err)
+		}
+	} else if *queryMode {
 		// Run in query mode
 		if *queryText == "" {
 			fmt.Println("Please provide a query using the -text flag")
