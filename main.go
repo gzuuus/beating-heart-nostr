@@ -32,7 +32,7 @@ func main() {
 	// Define command-line flags
 	queryMode := flag.Bool("query", false, "Run in query mode")
 	queryText := flag.String("text", "", "The query text when in query mode")
-	similarity := flag.Float64("similarity", 0.3, "The similarity threshold for retrieving documents")
+	similarity := flag.Float64("similarity", 0.6, "The similarity threshold for retrieving documents")
 	numResults := flag.Int("results", 3, "The number of similar documents to retrieve")
 	_ = flag.Bool("mcp", true, "Run as an MCP server (default)")
 	ingestMode := flag.Bool("ingest", false, "Ingest data into the RAG database")

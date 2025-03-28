@@ -59,7 +59,7 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 
 	// Extract optional parameters with defaults
-	similarity := 0.3
+	similarity := 0.6
 	if sim, ok := request.Params.Arguments["similarity"].(float64); ok {
 		similarity = sim
 	}
