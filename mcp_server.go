@@ -13,26 +13,23 @@ import (
 
 var globalStore embeddings.BboltVectorStore
 
-// StartMCPServer initializes and starts the MCP server
 func StartMCPServer() error {
 	err := globalStore.Initialize(dbPath)
 	if err != nil {
 		return fmt.Errorf("error initializing vector store: %v", err)
 	}
 
-	// Create MCP server
 	s := server.NewMCPServer(
-		"Nostr NIPs RAG System",
+		"Beating Heart Nostr RAG System",
 		"1.0.0",
 		server.WithLogging(),
 	)
 
-	// Add query tool
-	queryTool := mcp.NewTool("query_nips",
-		mcp.WithDescription("Search Nostr NIPs documentation with semantic search"),
+	queryTool := mcp.NewTool("query_nostr_data",
+		mcp.WithDescription("Searches the Nostr documentation for documents semantically similar to the input query."),
 		mcp.WithString("query",
 			mcp.Required(),
-			mcp.Description("The query text to search for in the NIPs documentation"),
+			mcp.Description("The query text to search for in the Nostr documentation"),
 		),
 		mcp.WithNumber("similarity",
 			mcp.Description("The similarity threshold for retrieving documents (0.0 to 1.0)"),
@@ -42,23 +39,18 @@ func StartMCPServer() error {
 		),
 	)
 
-	// Add tool handler
-	s.AddTool(queryTool, queryNipsHandler)
+	s.AddTool(queryTool, queryNostrDataHandler)
 
-	// Start the stdio server
-	fmt.Println("Starting MCP server for Nostr NIPs RAG system...")
+	fmt.Println("Starting MCP server for Nostr RAG system...")
 	return server.ServeStdio(s)
 }
 
-// queryNipsHandler handles the query_nips tool requests
-func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract parameters
+func queryNostrDataHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query, ok := request.Params.Arguments["query"].(string)
 	if !ok || query == "" {
 		return nil, errors.New("query must be a non-empty string")
 	}
 
-	// Extract optional parameters with defaults
 	similarity := 0.6
 	if sim, ok := request.Params.Arguments["similarity"].(float64); ok {
 		similarity = sim
@@ -69,7 +61,6 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		numResults = int(num)
 	}
 
-	// Create embedding from the query
 	queryWithPrefix := fmt.Sprintf("search_query: %s", query)
 	queryEmbedding, err := embeddings.CreateEmbedding(
 		ollamaURL,
@@ -83,7 +74,6 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return nil, fmt.Errorf("error creating embedding: %v", err)
 	}
 
-	// Search for similar documents
 	similarities, err := globalStore.SearchTopNSimilarities(queryEmbedding, similarity, numResults)
 	if err != nil {
 		return nil, fmt.Errorf("error searching for similarities: %v", err)
@@ -93,9 +83,7 @@ func queryNipsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultText("No similar documents found"), nil
 	}
 
-	// Generate context from similarities
 	context := embeddings.GenerateContextFromSimilarities(similarities)
 
-	// Return the results
 	return mcp.NewToolResultText(context), nil
 }
