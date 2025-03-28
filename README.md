@@ -1,6 +1,6 @@
 # Beating Heart Nostr
 
-A powerful Retrieval-Augmented Generation (RAG) system for the Nostr Protocol NIPs (Nostr Implementation Possibilities). This project creates a semantic search engine for Nostr protocol specifications, allowing developers to quickly find relevant information across all NIPs using natural language queries.
+A Retrieval-Augmented Generation (RAG) system for the Nostr Protocol NIPs (Nostr Implementation Possibilities). This project creates a semantic search engine for Nostr protocol specifications, allowing developers to quickly find relevant information across all NIPs using natural language queries. Also exposes an MCP server to use it.
 
 ## Overview
 
@@ -150,8 +150,6 @@ Contributions are welcome! Here are some ways you can contribute:
 
 - Improve the chunking strategy for better semantic understanding
 - Enhance the query processing for more accurate results
-- Add support for additional embedding models
-- Create a web interface for easier querying
 
 ## Acknowledgments
 
