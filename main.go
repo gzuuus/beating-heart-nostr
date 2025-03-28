@@ -18,7 +18,8 @@ import (
 
 const (
 	repoURL        = "https://github.com/nostr-protocol/nips"
-	cloneDir       = "./nips-repo"
+	dataDir        = "./data"
+	cloneDir       = "./data/nips-repo"
 	dbPath         = "./embeddings.db"
 	ollamaURL      = "http://localhost:11434"
 	embeddingModel = "nomic-embed-text"
@@ -33,18 +34,25 @@ func main() {
 	queryText := flag.String("text", "", "The query text when in query mode")
 	similarity := flag.Float64("similarity", 0.3, "The similarity threshold for retrieving documents")
 	numResults := flag.Int("results", 3, "The number of similar documents to retrieve")
-	mcpMode := flag.Bool("mcp", false, "Run as an MCP server")
+	_ = flag.Bool("mcp", true, "Run as an MCP server (default)")
+	ingestMode := flag.Bool("ingest", false, "Ingest data into the RAG database")
+	cloneNips := flag.Bool("clone-nips", false, "Clone the Nostr NIPs repository into the data directory")
 
 	// Parse flags
 	flag.Parse()
 
-	if *mcpMode {
-		// Run as an MCP server
-		fmt.Println("Starting in MCP server mode...")
-		err := StartMCPServer()
+	// Create data directory if it doesn't exist
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		err := os.MkdirAll(dataDir, 0755)
 		if err != nil {
-			log.Fatalf("Error running MCP server: %v", err)
+			log.Fatalf("Error creating data directory: %v", err)
 		}
+	}
+
+	if *ingestMode {
+		// Run in database creation mode
+		fmt.Println("Starting data ingestion...")
+		createDatabase(*cloneNips)
 	} else if *queryMode {
 		// Run in query mode
 		if *queryText == "" {
@@ -54,12 +62,16 @@ func main() {
 		}
 		queryDatabase(*queryText, *similarity, *numResults)
 	} else {
-		// Run in database creation mode
-		createDatabase()
+		// Run as an MCP server (default)
+		fmt.Println("Starting in MCP server mode...")
+		err := StartMCPServer()
+		if err != nil {
+			log.Fatalf("Error running MCP server: %v", err)
+		}
 	}
 }
 
-func createDatabase() {
+func createDatabase(cloneNips bool) {
 	// Create a new vector store
 	store := embeddings.BboltVectorStore{}
 	err := store.Initialize(dbPath)
@@ -68,22 +80,24 @@ func createDatabase() {
 		return
 	}
 
-	// Clone the repository if it doesn't exist
-	fmt.Println("Cloning repository...")
-	_, err = git.PlainClone(cloneDir, false, &git.CloneOptions{
-		URL:      repoURL,
-		Progress: os.Stdout,
-	})
-	if err != nil && err != git.ErrRepositoryAlreadyExists {
-		fmt.Printf("Error cloning repository: %v\n", err)
-		return
+	// Clone the NIPs repository if requested
+	if cloneNips {
+		fmt.Println("Cloning NIPs repository...")
+		_, err = git.PlainClone(cloneDir, false, &git.CloneOptions{
+			URL:      repoURL,
+			Progress: os.Stdout,
+		})
+		if err != nil && err != git.ErrRepositoryAlreadyExists {
+			fmt.Printf("Error cloning repository: %v\n", err)
+			return
+		}
 	}
 
-	// Process the repository files
-	fmt.Println("Processing repository files...")
-	err = processRepository(cloneDir, &store)
+	// Process all markdown files in the data directory
+	fmt.Println("Processing markdown files in data directory...")
+	err = processDataDirectory(dataDir, &store)
 	if err != nil {
-		fmt.Printf("Error processing repository: %v\n", err)
+		fmt.Printf("Error processing data directory: %v\n", err)
 		return
 	}
 
@@ -135,11 +149,11 @@ func queryDatabase(query string, similarity float64, numResults int) {
 	fmt.Println("")
 }
 
-func processRepository(repoPath string, store *embeddings.BboltVectorStore) error {
-	// Walk through the repository and process markdown files
+func processDataDirectory(dataDir string, store *embeddings.BboltVectorStore) error {
+	// Walk through the data directory and process markdown files
 	var processedCount int
 
-	return filepath.WalkDir(repoPath, func(path string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(dataDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

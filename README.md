@@ -33,19 +33,36 @@ ollama pull nomic-embed-text
 
 ## Usage
 
-### Creating the RAG Database
+### Running the MCP Server (Default)
 
-To create the RAG database from the Nostr NIPs repository:
+By default, running the application will start the MCP server:
 
 ```bash
 go run .
 ```
 
+This starts an MCP server that provides the `query_nips` tool for AI agents.
+
+### Creating the RAG Database
+
+To create or update the RAG database:
+
+```bash
+go run . -ingest
+```
+
 This will:
-1. Clone the Nostr NIPs repository to `./nips-repo/`
-2. Process all markdown files in the repository
-3. Create embeddings for each chunk
-4. Store the embeddings in `./embeddings.db`
+1. Process all markdown files in the `./data/` directory
+2. Create embeddings for each chunk
+3. Store the embeddings in `./embeddings.db`
+
+To also clone the Nostr NIPs repository into the data directory:
+
+```bash
+go run . -ingest -clone-nips
+```
+
+This will clone the repository to `./data/nips-repo/` before processing.
 
 ### Querying the RAG Database
 
@@ -68,25 +85,19 @@ The system will return the most relevant sections from the NIPs documentation th
 
 ### Running as an MCP Server
 
-You can expose the RAG system as an MCP server:
-
-```bash
-go run . -mcp
-```
-
-This starts an MCP server that provides the `query_nips` tool for AI agents. The tool accepts:
+The application runs as an MCP server by default. The server provides the `query_nips` tool for AI agents. The tool accepts:
 - `query` (required): The search query
 - `similarity` (optional): Similarity threshold (0.0-1.0)
 - `num_results` (optional): Number of results to return
 
 Test with the MCP inspector:
 ```bash
-npx @modelcontextprotocol/inspector go run . -mcp
+npx @modelcontextprotocol/inspector go run .
 ```
 
 ## How It Works
 
-1. **Semantic Chunking**: The system processes markdown files from the Nostr NIPs repository using semantic chunking to preserve the document structure and meaning.
+1. **Semantic Chunking**: The system processes markdown files from the `./data/` directory using semantic chunking to preserve the document structure and meaning.
 
 2. **Context-Aware Embeddings**: Each chunk is enhanced with metadata and converted into a vector embedding using the `nomic-embed-text` model with task-specific prefixes:
    - Document chunks use the `search_document:` prefix
@@ -108,12 +119,20 @@ You can modify the constants in `main.go` to customize the behavior:
 ```go
 const (
     repoURL        = "https://github.com/nostr-protocol/nips"
-    cloneDir       = "./nips-repo"
+    dataDir        = "./data"
+    cloneDir       = "./data/nips-repo"
     dbPath         = "./embeddings.db"
     ollamaURL      = "http://localhost:11434"
     embeddingModel = "nomic-embed-text"
 )
 ```
+
+### Adding Custom Documents
+
+To add your own markdown documents to the RAG system:
+
+1. Place your markdown files in the `./data/` directory
+2. Run `go run . -ingest` to process the files and update the database
 
 ### Key Parameters
 
