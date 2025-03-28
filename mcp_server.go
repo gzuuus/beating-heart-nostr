@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -40,6 +43,22 @@ func StartMCPServer() error {
 	)
 
 	s.AddTool(queryTool, queryNostrDataHandler)
+	
+	eventKindsResource := mcp.NewResource(
+		"nostr://event-kinds",
+		"Nostr Event Kinds",
+		mcp.WithResourceDescription("List of standardized Nostr event kinds and their descriptions"),
+		mcp.WithMIMEType("text/markdown"),
+	)
+	s.AddResource(eventKindsResource, eventKindsResourceHandler)
+	
+	standardTagsResource := mcp.NewResource(
+		"nostr://standard-tags",
+		"Nostr Standardized Tags",
+		mcp.WithResourceDescription("List of standardized Nostr tags and their descriptions"),
+		mcp.WithMIMEType("text/markdown"),
+	)
+	s.AddResource(standardTagsResource, standardTagsResourceHandler)
 
 	fmt.Println("Starting MCP server for Nostr RAG system...")
 	return server.ServeStdio(s)
@@ -86,4 +105,75 @@ func queryNostrDataHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 	context := embeddings.GenerateContextFromSimilarities(similarities)
 
 	return mcp.NewToolResultText(context), nil
+}
+
+func eventKindsResourceHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	readmePath := filepath.Join(cloneDir, "README.md")
+	
+	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("NIPs repository README not found at %s", readmePath)
+	}
+	
+	content, err := os.ReadFile(readmePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading README: %v", err)
+	}
+	
+	eventKindsSection := extractSection(string(content), "## Event Kinds", "##")
+	if eventKindsSection == "" {
+		return nil, errors.New("event kinds section not found in README")
+	}
+	
+	formattedContent := fmt.Sprintf("# Nostr Event Kinds\n\n%s", eventKindsSection)
+	
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      request.Params.URI,
+			MIMEType: "text/markdown",
+			Text:     formattedContent,
+		},
+	}, nil
+}
+
+func standardTagsResourceHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	readmePath := filepath.Join(cloneDir, "README.md")
+	
+	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("NIPs repository README not found at %s", readmePath)
+	}
+	
+	content, err := os.ReadFile(readmePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading README: %v", err)
+	}
+	
+	tagsSection := extractSection(string(content), "## Standardized Tags", "##")
+	if tagsSection == "" {
+		return nil, errors.New("standardized tags section not found in README")
+	}
+	
+	formattedContent := fmt.Sprintf("# Nostr Standardized Tags\n\n%s", tagsSection)
+	
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      request.Params.URI,
+			MIMEType: "text/markdown",
+			Text:     formattedContent,
+		},
+	}, nil
+}
+
+func extractSection(content, startMarker, endMarker string) string {
+	startIndex := strings.Index(content, startMarker)
+	if startIndex == -1 {
+		return ""
+	}
+	
+	endIndex := strings.Index(content[startIndex+len(startMarker):], endMarker)
+	if endIndex == -1 {
+		return strings.TrimSpace(content[startIndex:])
+	}
+	
+	sectionContent := content[startIndex:startIndex+len(startMarker)+endIndex]
+	return strings.TrimSpace(sectionContent)
 }

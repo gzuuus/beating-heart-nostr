@@ -85,10 +85,17 @@ The system will return the most relevant sections from the NIPs documentation th
 
 ### Running as an MCP Server
 
-The application runs as an MCP server by default. The server provides the `query_nips` tool for AI agents. The tool accepts:
-- `query` (required): The search query
-- `similarity` (optional): Similarity threshold (0.0-1.0)
-- `num_results` (optional): Number of results to return
+The application runs as an MCP server by default. The server provides the following capabilities for AI agents:
+
+#### Tools
+- `query_nostr_data`: Searches the Nostr documentation for semantically similar content
+  - `query` (required): The search query
+  - `similarity` (optional): Similarity threshold (0.0-1.0)
+  - `num_results` (optional): Number of results to return
+
+#### Resources
+- `nostr://event-kinds`: List of standardized Nostr event kinds and their descriptions
+- `nostr://standard-tags`: List of standardized Nostr tags and their descriptions
 
 Test with the MCP inspector:
 ```bash
