@@ -17,6 +17,11 @@ import (
 var globalStore embeddings.BboltVectorStore
 
 func StartMCPServer() error {
+	// Load repository configurations if not already done
+	if len(repos) == 0 {
+		loadReposConfig("")
+	}
+
 	err := globalStore.Initialize(dbPath)
 	if err != nil {
 		return fmt.Errorf("error initializing vector store: %v", err)
@@ -43,7 +48,7 @@ func StartMCPServer() error {
 	)
 
 	s.AddTool(queryTool, queryNostrDataHandler)
-	
+
 	eventKindsResource := mcp.NewResource(
 		"nostr://event-kinds",
 		"Nostr Event Kinds",
@@ -51,7 +56,7 @@ func StartMCPServer() error {
 		mcp.WithMIMEType("text/markdown"),
 	)
 	s.AddResource(eventKindsResource, eventKindsResourceHandler)
-	
+
 	standardTagsResource := mcp.NewResource(
 		"nostr://standard-tags",
 		"Nostr Standardized Tags",
@@ -65,6 +70,7 @@ func StartMCPServer() error {
 }
 
 func queryNostrDataHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// The query handler only needs the embedding database, not the repositories directly
 	query, ok := request.Params.Arguments["query"].(string)
 	if !ok || query == "" {
 		return nil, errors.New("query must be a non-empty string")
@@ -108,24 +114,37 @@ func queryNostrDataHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 }
 
 func eventKindsResourceHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	readmePath := filepath.Join(cloneDir, "README.md")
-	
+	// Find the nips repository in repos
+	var nipsRepo RepoConfig
+	for _, repo := range repos {
+		if repo.Name == "nips" && repo.Enabled {
+			nipsRepo = repo
+			break
+		}
+	}
+
+	if nipsRepo.CloneDir == "" {
+		return nil, fmt.Errorf("NIPs repository not found or not enabled")
+	}
+
+	readmePath := filepath.Join(nipsRepo.CloneDir, "README.md")
+
 	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("NIPs repository README not found at %s", readmePath)
 	}
-	
+
 	content, err := os.ReadFile(readmePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading README: %v", err)
 	}
-	
+
 	eventKindsSection := extractSection(string(content), "## Event Kinds", "##")
 	if eventKindsSection == "" {
 		return nil, errors.New("event kinds section not found in README")
 	}
-	
+
 	formattedContent := fmt.Sprintf("# Nostr Event Kinds\n\n%s", eventKindsSection)
-	
+
 	return []mcp.ResourceContents{
 		mcp.TextResourceContents{
 			URI:      request.Params.URI,
@@ -136,24 +155,37 @@ func eventKindsResourceHandler(ctx context.Context, request mcp.ReadResourceRequ
 }
 
 func standardTagsResourceHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	readmePath := filepath.Join(cloneDir, "README.md")
-	
+	// Find the nips repository in repos
+	var nipsRepo RepoConfig
+	for _, repo := range repos {
+		if repo.Name == "nips" && repo.Enabled {
+			nipsRepo = repo
+			break
+		}
+	}
+
+	if nipsRepo.CloneDir == "" {
+		return nil, fmt.Errorf("NIPs repository not found or not enabled")
+	}
+
+	readmePath := filepath.Join(nipsRepo.CloneDir, "README.md")
+
 	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("NIPs repository README not found at %s", readmePath)
 	}
-	
+
 	content, err := os.ReadFile(readmePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading README: %v", err)
 	}
-	
+
 	tagsSection := extractSection(string(content), "## Standardized Tags", "##")
 	if tagsSection == "" {
 		return nil, errors.New("standardized tags section not found in README")
 	}
-	
+
 	formattedContent := fmt.Sprintf("# Nostr Standardized Tags\n\n%s", tagsSection)
-	
+
 	return []mcp.ResourceContents{
 		mcp.TextResourceContents{
 			URI:      request.Params.URI,
@@ -168,12 +200,12 @@ func extractSection(content, startMarker, endMarker string) string {
 	if startIndex == -1 {
 		return ""
 	}
-	
+
 	endIndex := strings.Index(content[startIndex+len(startMarker):], endMarker)
 	if endIndex == -1 {
 		return strings.TrimSpace(content[startIndex:])
 	}
-	
-	sectionContent := content[startIndex:startIndex+len(startMarker)+endIndex]
+
+	sectionContent := content[startIndex : startIndex+len(startMarker)+endIndex]
 	return strings.TrimSpace(sectionContent)
 }

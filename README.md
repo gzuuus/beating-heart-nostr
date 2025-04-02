@@ -1,15 +1,16 @@
 # Beating Heart Nostr
 
-A Retrieval-Augmented Generation (RAG) system for the Nostr Protocol NIPs (Nostr Implementation Possibilities). This project creates a semantic search engine for Nostr protocol specifications, allowing developers to quickly find relevant information across all NIPs using natural language queries. Also exposes an MCP server to use it.
+A Retrieval-Augmented Generation (RAG) system for Nostr Protocol documentation. This project creates a semantic search engine for Nostr protocol specifications, allowing developers to quickly find relevant information across multiple Nostr-related repositories using natural language queries. Also exposes an MCP server to use it.
 
 ## Overview
 
 Beating Heart Nostr serves as the knowledge core for Nostr protocol development:
 
-1. **Intelligent Document Processing**: Semantically chunks the [Nostr NIPs repository](https://github.com/nostr-protocol/nips) with context preservation
+1. **Intelligent Document Processing**: Semantically chunks multiple Nostr-related repositories with context preservation
 2. **Advanced Embedding Generation**: Creates high-quality embeddings using `nomic-embed-text` model with task-specific prefixes
 3. **Efficient Vector Storage**: Organizes embeddings in a BBolt vector database
 4. **Natural Language Interface**: Provides an intuitive query system that understands developer questions about the protocol
+5. **Multi-Repository Support**: Allows adding and managing multiple repositories as knowledge sources
 
 ## Requirements
 
@@ -33,15 +34,37 @@ ollama pull nomic-embed-text
 
 ## Usage
 
-### Running the MCP Server (Default)
+### Repository Management
 
-By default, running the application will start the MCP server:
+The system uses a `repos.json` file to manage repositories. Here's how to work with it:
+
+#### Adding a Repository
+
+To add a new repository:
 
 ```bash
-go run .
+go run . -add-repo="https://github.com/example/repo,example"
 ```
 
-This starts an MCP server that provides the `query_nips` tool for AI agents.
+The format is `URL,name` where:
+- `URL` is the Git repository URL
+- `name` is a short identifier for the repository
+
+#### Listing Repositories
+
+To see all configured repositories:
+
+```bash
+go run . -list-repos
+```
+
+#### Cloning Repositories
+
+To clone all enabled repositories:
+
+```bash
+go run . -clone-repos
+```
 
 ### Creating the RAG Database
 
@@ -52,17 +75,25 @@ go run . -ingest
 ```
 
 This will:
-1. Process all markdown files in the `./data/` directory
+1. Process all markdown files from enabled repositories
 2. Create embeddings for each chunk
 3. Store the embeddings in `./embeddings.db`
 
-To also clone the Nostr NIPs repository into the data directory:
+You can also combine cloning and ingestion in one step:
 
 ```bash
-go run . -ingest -clone-nips
+go run . -ingest -clone-repos
 ```
 
-This will clone the repository to `./data/nips-repo/` before processing.
+### Running the MCP Server (Default)
+
+By default, running the application will start the MCP server:
+
+```bash
+go run .
+```
+
+This starts an MCP server that provides the `query_nostr_data` tool for AI agents.
 
 ### Querying the RAG Database
 
@@ -94,8 +125,8 @@ The application runs as an MCP server by default. The server provides the follow
   - `num_results` (optional): Number of results to return
 
 #### Resources
-- `nostr://event-kinds`: List of standardized Nostr event kinds and their descriptions
-- `nostr://standard-tags`: List of standardized Nostr tags and their descriptions
+- `nostr://event-kinds`: List of standardized Nostr event kinds and their descriptions (requires the nips repository to be enabled)
+- `nostr://standard-tags`: List of standardized Nostr tags and their descriptions (requires the nips repository to be enabled)
 
 Test with the MCP inspector:
 ```bash
@@ -104,7 +135,7 @@ npx @modelcontextprotocol/inspector go run .
 
 ## How It Works
 
-1. **Semantic Chunking**: The system processes markdown files from the `./data/` directory using semantic chunking to preserve the document structure and meaning.
+1. **Semantic Chunking**: The system processes markdown files from all enabled repositories using semantic chunking to preserve the document structure and meaning.
 
 2. **Context-Aware Embeddings**: Each chunk is enhanced with metadata and converted into a vector embedding using the `nomic-embed-text` model with task-specific prefixes:
    - Document chunks use the `search_document:` prefix
@@ -117,7 +148,7 @@ npx @modelcontextprotocol/inspector go run .
    - The system finds the most semantically similar document chunks using cosine similarity
    - The top matching chunks are returned as context
 
-5. **Metadata Preservation**: Each chunk maintains information about its source file, section headers, and position in the document hierarchy.
+5. **Metadata Preservation**: Each chunk maintains information about its source repository, file, section headers, and position in the document hierarchy.
 
 ## Customization
 
@@ -125,21 +156,40 @@ You can modify the constants in `main.go` to customize the behavior:
 
 ```go
 const (
-    repoURL        = "https://github.com/nostr-protocol/nips"
     dataDir        = "./data"
-    cloneDir       = "./data/nips-repo"
     dbPath         = "./embeddings.db"
     ollamaURL      = "http://localhost:11434"
     embeddingModel = "nomic-embed-text"
+    configFile     = "repos.json"
 )
 ```
 
-### Adding Custom Documents
+### Configuration File Format
 
-To add your own markdown documents to the RAG system:
+The system uses a `repos.json` file to define repositories. Here's the format:
 
-1. Place your markdown files in the `./data/` directory
-2. Run `go run . -ingest` to process the files and update the database
+```json
+[
+  {
+    "URL": "https://github.com/nostr-protocol/nips",
+    "Name": "nips",
+    "CloneDir": "./data/nips-repo",
+    "Enabled": true
+  },
+  {
+    "URL": "https://gitlab.com/soapbox-pub/nostrbook",
+    "Name": "nostrbook",
+    "CloneDir": "./data/nostrbook-repo",
+    "Enabled": true
+  }
+]
+```
+
+Each repository has the following properties:
+- `URL`: The Git repository URL
+- `Name`: A short identifier for the repository
+- `CloneDir`: Directory where the repo will be cloned (optional, will be auto-generated if not provided)
+- `Enabled`: Whether this repo should be processed (true/false)
 
 ### Key Parameters
 
