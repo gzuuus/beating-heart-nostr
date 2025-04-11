@@ -95,7 +95,7 @@ func main() {
 		queryDatabase(*queryText, *similarity, *numResults)
 	} else {
 		// Run as an MCP server (default)
-		fmt.Println("Starting in MCP server mode...")
+		// fmt.Println("Starting in MCP server mode...")
 		err := StartMCPServer()
 		if err != nil {
 			log.Fatalf("Error running MCP server: %v", err)
